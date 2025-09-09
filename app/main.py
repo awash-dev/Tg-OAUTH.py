@@ -1,17 +1,31 @@
 from fastapi import FastAPI, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from app.db import cursor, conn
 from app.config import SESSION_EXPIRY_DAYS
 from app.telegram_client import connect_client, get_user_info
 from app.telegram_client import InvalidCode, PasswordRequired, InvalidPassword
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PasswordHashInvalidError
-
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 import httpx
 
 app = FastAPI()
 pending_clients = {}
+
+# --- CORS Middleware ---
+origins = [
+    "http://localhost:3000",  # Next.js dev
+    "https://tg-auth-frontend.onrender.com",  # Your deployed frontend
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Send code ---
 @app.post("/send-code")
@@ -114,7 +128,6 @@ async def logout(phone: str = Form(...)):
 scheduler = AsyncIOScheduler()
 
 async def scheduled_task():
-    # Example: check all active sessions
     cursor.execute("SELECT phone FROM sessions")
     phones = cursor.fetchall()
     for (phone,) in phones:
