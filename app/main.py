@@ -1,21 +1,21 @@
 from fastapi import FastAPI, Form, HTTPException
 from datetime import datetime, timedelta
-from .db import cursor, conn
-from .config import SESSION_EXPIRY_DAYS
-from .telegram_client import connect_client, get_user_info, SessionPasswordNeededError, PhoneCodeInvalidError, PasswordHashInvalidError, InvalidCode, PasswordRequired, InvalidPassword
+from app.db import cursor, conn
+from app.config import SESSION_EXPIRY_DAYS
+from app.telegram_client import connect_client, get_user_info
+from app.telegram_client import InvalidCode, PasswordRequired, InvalidPassword
+from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError, PasswordHashInvalidError
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import asyncio
+import httpx
 
 app = FastAPI()
 pending_clients = {}
 
-# ----root endpoint----
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the Telegram Auth API"}
-
-
-# --- login phone number ---
-@app.post("/login")
-async def login(phone: str = Form(...)):
+# --- Send code ---
+@app.post("/send-code")
+async def send_code(phone: str = Form(...)):
     client = await connect_client()
     try:
         await client.send_code_request(phone)
@@ -81,8 +81,8 @@ async def verify_code(phone: str = Form(...), code: str = Form(...), password: s
     return {"status": "ok", "user": {"id": me.id, "username": me.username, "phone": me.phone}, "session": string_session}
 
 # --- Get current user ---
-@app.post("/profile")
-async def profile(phone: str = Form(...)):
+@app.post("/me")
+async def me(phone: str = Form(...)):
     cursor.execute("SELECT string_session, created_at FROM sessions WHERE phone=%s", (phone,))
     row = cursor.fetchone()
     if not row:
@@ -109,3 +109,21 @@ async def logout(phone: str = Form(...)):
     cursor.execute("DELETE FROM users WHERE phone=%s", (phone,))
     conn.commit()
     return {"status": "ok", "message": "Logged out successfully"}
+
+# --- APScheduler Task: example task every 14 minutes ---
+scheduler = AsyncIOScheduler()
+
+async def scheduled_task():
+    # Example: check all active sessions
+    cursor.execute("SELECT phone FROM sessions")
+    phones = cursor.fetchall()
+    for (phone,) in phones:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post("http://127.0.0.1:8000/me", data={"phone": phone})
+            print(f"Checked session for {phone}")
+        except Exception as e:
+            print(f"Error checking {phone}: {e}")
+
+scheduler.add_job(scheduled_task, "interval", minutes=14)
+scheduler.start()

@@ -3,4 +3,6 @@ fastapi
 uvicorn 
 python-multipart
 dotenv
-psycopg2
+psycopg2 
+apscheduler
+httpx
