@@ -13,15 +13,10 @@ import httpx
 app = FastAPI()
 pending_clients = {}
 
-# --- CORS Middleware ---
-origins = [
-    "http://localhost:3000",  # Next.js dev
-    "https://tg-auth-frontend.onrender.com",  # Your deployed frontend
-]
-
+# --- CORS Middleware (allow all origins) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],          # Allow requests from any origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
