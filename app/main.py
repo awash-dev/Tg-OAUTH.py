@@ -120,7 +120,7 @@ async def scheduled_task():
     for (phone,) in phones:
         try:
             async with httpx.AsyncClient() as client:
-                await client.post("http://127.0.0.1:8000/me", data={"phone": phone})
+                await client.post("https://tg-oauth-v3.onrender.com/me", data={"phone": phone})
             print(f"Checked session for {phone}")
         except Exception as e:
             print(f"Error checking {phone}: {e}")
