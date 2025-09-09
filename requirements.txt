@@ -1,0 +1,6 @@
+telethon 
+fastapi 
+uvicorn 
+python-multipart
+dotenv
+psycopg2
